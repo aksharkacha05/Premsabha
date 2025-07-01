@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,23 +9,132 @@ import {
   TextInput,
   Alert,
   Dimensions,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-audio';
 import { themeColors, commonStyles } from '../config/theme';
+import { kirtanApi } from '../config/api';
 
 const { width, height } = Dimensions.get('window');
 
 const KirtanPlayerScreen = ({ navigation }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [kirtans, setKirtans] = useState([]);
+  const [filteredKirtans, setFilteredKirtans] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Audio player states
+  const [sound, setSound] = useState(null);
   const [currentKirtan, setCurrentKirtan] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
 
-  const categories = ['All', 'Bhajans', 'Aartis', 'Stotras', 'Kirtans', 'Mantras'];
+  // Fetch kirtans from API
+  const fetchKirtans = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Get user token from storage (you'll need to implement this)
+      const token = null; // Replace with actual token retrieval
+      
+      const result = await kirtanApi.getAllKirtans(token);
+      
+      if (result.success) {
+        setKirtans(result.data);
+        setFilteredKirtans(result.data);
+      } else {
+        setError(result.error);
+        // Fallback to demo data if API fails
+        setKirtans(getDemoKirtans());
+        setFilteredKirtans(getDemoKirtans());
+      }
+    } catch (error) {
+      console.error('Error fetching kirtans:', error);
+      setError('Failed to load kirtans');
+      // Fallback to demo data
+      setKirtans(getDemoKirtans());
+      setFilteredKirtans(getDemoKirtans());
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const kirtans = [
+  // Fetch categories from API
+  const fetchCategories = async () => {
+    try {
+      const token = null; // Replace with actual token retrieval
+      const result = await kirtanApi.getKirtanCategories(token);
+      
+      if (result.success) {
+        setCategories(['All', ...result.data]);
+      } else {
+        // Fallback to demo categories
+        setCategories(['All', 'Bhajans', 'Mantras', 'Kirtans', 'Aartis', 'Stotras']);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      // Fallback to demo categories
+      setCategories(['All', 'Bhajans', 'Mantras', 'Kirtans', 'Aartis', 'Stotras']);
+    }
+  };
+
+  // Search kirtans
+  const searchKirtans = async (query) => {
+    if (!query.trim()) {
+      setFilteredKirtans(kirtans);
+      return;
+    }
+
+    try {
+      setIsSearching(true);
+      const token = null; // Replace with actual token retrieval
+      const result = await kirtanApi.searchKirtans(query, token);
+      
+      if (result.success) {
+        setFilteredKirtans(result.data);
+      } else {
+        // Fallback to local search
+        const filtered = kirtans.filter(kirtan =>
+          kirtan.title.toLowerCase().includes(query.toLowerCase()) ||
+          kirtan.artist.toLowerCase().includes(query.toLowerCase())
+        );
+        setFilteredKirtans(filtered);
+      }
+    } catch (error) {
+      console.error('Error searching kirtans:', error);
+      // Fallback to local search
+      const filtered = kirtans.filter(kirtan =>
+        kirtan.title.toLowerCase().includes(query.toLowerCase()) ||
+        kirtan.artist.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredKirtans(filtered);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Filter by category
+  const filterByCategory = (category) => {
+    setSelectedCategory(category);
+    if (category === 'All') {
+      setFilteredKirtans(kirtans);
+    } else {
+      const filtered = kirtans.filter(kirtan => kirtan.category === category);
+      setFilteredKirtans(filtered);
+    }
+  };
+
+  // Demo data fallback
+  const getDemoKirtans = () => [
     {
       id: '1',
       title: 'Jai Shree Krishna',
@@ -33,7 +142,7 @@ const KirtanPlayerScreen = ({ navigation }) => {
       category: 'Bhajans',
       duration: '5:32',
       thumbnail: '🕉️',
-      audioUrl: 'https://example.com/jai-shree-krishna.mp3',
+      audioUrl: null,
     },
     {
       id: '2',
@@ -42,7 +151,7 @@ const KirtanPlayerScreen = ({ navigation }) => {
       category: 'Mantras',
       duration: '8:15',
       thumbnail: '🕉️',
-      audioUrl: 'https://example.com/hare-krishna.mp3',
+      audioUrl: null,
     },
     {
       id: '3',
@@ -51,7 +160,7 @@ const KirtanPlayerScreen = ({ navigation }) => {
       category: 'Kirtans',
       duration: '6:42',
       thumbnail: '🕉️',
-      audioUrl: 'https://example.com/govind-bolo.mp3',
+      audioUrl: null,
     },
     {
       id: '4',
@@ -60,86 +169,130 @@ const KirtanPlayerScreen = ({ navigation }) => {
       category: 'Aartis',
       duration: '4:18',
       thumbnail: '🕉️',
-      audioUrl: 'https://example.com/aarti-kunj-bihari.mp3',
-    },
-    {
-      id: '5',
-      title: 'Shree Hanuman Chalisa',
-      artist: 'Traditional',
-      category: 'Stotras',
-      duration: '12:35',
-      thumbnail: '🕉️',
-      audioUrl: 'https://example.com/hanuman-chalisa.mp3',
-    },
-    {
-      id: '6',
-      title: 'Radhe Radhe',
-      artist: 'Traditional',
-      category: 'Bhajans',
-      duration: '7:23',
-      thumbnail: '🕉️',
-      audioUrl: 'https://example.com/radhe-radhe.mp3',
-    },
-    {
-      id: '7',
-      title: 'Om Namah Shivaya',
-      artist: 'Traditional',
-      category: 'Mantras',
-      duration: '9:47',
-      thumbnail: '🕉️',
-      audioUrl: 'https://example.com/om-namah-shivaya.mp3',
-    },
-    {
-      id: '8',
-      title: 'Jai Ganesh Jai Ganesh Deva',
-      artist: 'Traditional',
-      category: 'Aartis',
-      duration: '5:56',
-      thumbnail: '🕉️',
-      audioUrl: 'https://example.com/jai-ganesh.mp3',
+      audioUrl: null,
     },
   ];
 
-  const filteredKirtans = kirtans.filter(kirtan => {
-    const matchesSearch = kirtan.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         kirtan.artist.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || kirtan.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  useEffect(() => {
+    return sound
+      ? () => {
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
 
-  const playKirtan = (kirtan) => {
-    setCurrentKirtan(kirtan);
-    setIsPlaying(true);
-    setCurrentTime(0);
-    setDuration(parseInt(kirtan.duration.split(':')[0]) * 60 + parseInt(kirtan.duration.split(':')[1]));
-    Alert.alert('Playing', `Now playing: ${kirtan.title}`);
-  };
+  useEffect(() => {
+    if (sound) {
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded) {
+          setIsPlaying(status.isPlaying);
+          setCurrentTime(status.positionMillis / 1000);
+          setDuration(status.durationMillis / 1000);
+        }
+      });
+    }
+  }, [sound]);
 
-  const togglePlayPause = () => {
-    if (currentKirtan) {
-      setIsPlaying(!isPlaying);
+  const playKirtan = async (kirtan) => {
+    try {
+      setIsLoadingAudio(true);
+      
+      // Check if audio file is available
+      if (!kirtan.audioUrl) {
+        // Demo mode - simulate playing
+        setCurrentKirtan(kirtan);
+        setIsPlaying(true);
+        setCurrentTime(0);
+        setDuration(parseInt(kirtan.duration.split(':')[0]) * 60 + parseInt(kirtan.duration.split(':')[1]));
+        
+        // Simulate progress updates
+        const progressInterval = setInterval(() => {
+          setCurrentTime(prev => {
+            const newTime = prev + 1;
+            if (newTime >= duration) {
+              clearInterval(progressInterval);
+              setIsPlaying(false);
+              return 0;
+            }
+            return newTime;
+          });
+        }, 1000);
+        
+        Alert.alert(
+          'Demo Mode', 
+          `Playing: ${kirtan.title}\n\nThis is a demo. Add real audio files to enable full playback.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Stop current audio if playing
+      if (sound) {
+        await sound.stopAsync();
+        await sound.unloadAsync();
+      }
+
+      // Get audio URL from API
+      let audioUrl = kirtan.audioUrl;
+      if (kirtan.id && !audioUrl.startsWith('http')) {
+        // If it's an API ID, get the full URL
+        audioUrl = kirtanApi.getKirtanAudioUrl(kirtan.id);
+      }
+
+      // Load and play new audio
+      const { sound: newSound } = await Audio.Sound.createAsync({ uri: audioUrl });
+      setSound(newSound);
+      setCurrentKirtan(kirtan);
+      setIsPlaying(true);
+      setCurrentTime(0);
+      
+      await newSound.playAsync();
+      Alert.alert('Playing', `Now playing: ${kirtan.title}`);
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      Alert.alert(
+        'Audio Error', 
+        'Could not play audio. Please ensure audio files are properly configured.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsLoadingAudio(false);
     }
   };
 
-  const skipToNext = () => {
+  const togglePlayPause = async () => {
+    if (!sound) return;
+
+    try {
+      if (isPlaying) {
+        await sound.pauseAsync();
+      } else {
+        await sound.playAsync();
+      }
+    } catch (error) {
+      console.error('Error toggling playback:', error);
+    }
+  };
+
+  const skipToNext = async () => {
     if (currentKirtan) {
       const currentIndex = kirtans.findIndex(k => k.id === currentKirtan.id);
       const nextIndex = (currentIndex + 1) % kirtans.length;
-      playKirtan(kirtans[nextIndex]);
+      await playKirtan(kirtans[nextIndex]);
     }
   };
 
-  const skipToPrevious = () => {
+  const skipToPrevious = async () => {
     if (currentKirtan) {
       const currentIndex = kirtans.findIndex(k => k.id === currentKirtan.id);
       const prevIndex = currentIndex === 0 ? kirtans.length - 1 : currentIndex - 1;
-      playKirtan(kirtans[prevIndex]);
+      await playKirtan(kirtans[prevIndex]);
     }
   };
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -184,6 +337,22 @@ const KirtanPlayerScreen = ({ navigation }) => {
       </Text>
     </TouchableOpacity>
   );
+
+  useEffect(() => {
+    fetchKirtans();
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    if (searchQuery) {
+      const timeoutId = setTimeout(() => {
+        searchKirtans(searchQuery);
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setFilteredKirtans(kirtans);
+    }
+  }, [searchQuery, kirtans]);
 
   return (
     <SafeAreaView style={commonStyles.safeArea}>
@@ -245,6 +414,9 @@ const KirtanPlayerScreen = ({ navigation }) => {
               <Text style={styles.nowPlayingArtist} numberOfLines={1}>
                 {currentKirtan.artist}
               </Text>
+              <Text style={styles.nowPlayingTime}>
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </Text>
             </View>
           </View>
           
@@ -252,9 +424,13 @@ const KirtanPlayerScreen = ({ navigation }) => {
             <TouchableOpacity style={styles.controlButton} onPress={skipToPrevious}>
               <Ionicons name="play-skip-back" size={24} color={themeColors.accent} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.playPauseButton} onPress={togglePlayPause}>
+            <TouchableOpacity 
+              style={styles.playPauseButton} 
+              onPress={togglePlayPause}
+              disabled={isLoading}
+            >
               <Ionicons 
-                name={isPlaying ? "pause" : "play"} 
+                name={isLoading ? "hourglass-outline" : (isPlaying ? "pause" : "play")} 
                 size={28} 
                 color={themeColors.textPrimary} 
               />
@@ -425,6 +601,10 @@ const styles = StyleSheet.create({
   nowPlayingArtist: {
     fontSize: 12,
     color: themeColors.textSecondary,
+  },
+  nowPlayingTime: {
+    fontSize: 12,
+    color: themeColors.textMuted,
   },
   controls: {
     flexDirection: 'row',
