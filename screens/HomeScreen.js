@@ -4,13 +4,13 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   Dimensions,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { themeColors, commonStyles } from '../config/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -122,7 +122,7 @@ const HomeScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
-            <Text style={commonStyles.headingLarge}>Jai Shree Krishna</Text>
+            <Text style={commonStyles.headingLarge}>Jai Swaminarayan</Text>
             <Text style={styles.headerSubtitle}>
               Welcome to your devotional journey
             </Text>

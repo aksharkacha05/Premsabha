@@ -35,7 +35,7 @@ const PdfLibraryScreen = ({ navigation }) => {
       title: 'Vachanamrut - Gadhada I',
       category: 'Vachanamrut',
       description: 'Sacred discourses of Lord Swaminarayan',
-      url: 'https://example.com/vachanamrut-gadhada-1.pdf',
+      url: null,
       icon: '📖',
       size: '2.5 MB',
       pages: 150,
@@ -45,7 +45,7 @@ const PdfLibraryScreen = ({ navigation }) => {
       title: 'Vachanamrut - Gadhada II',
       category: 'Vachanamrut',
       description: 'Sacred discourses of Lord Swaminarayan',
-      url: 'https://example.com/vachanamrut-gadhada-2.pdf',
+      url: null,
       icon: '📖',
       size: '3.1 MB',
       pages: 180,
@@ -55,7 +55,7 @@ const PdfLibraryScreen = ({ navigation }) => {
       title: 'Vachanamrut - Gadhada III',
       category: 'Vachanamrut',
       description: 'Sacred discourses of Lord Swaminarayan',
-      url: 'https://example.com/vachanamrut-gadhada-3.pdf',
+      url: null,
       icon: '📖',
       size: '2.8 MB',
       pages: 165,
@@ -65,7 +65,7 @@ const PdfLibraryScreen = ({ navigation }) => {
       title: 'Swamini Vato - Part 1',
       category: 'SwaminiVato',
       description: 'Sacred discourses of Gunatitanand Swami',
-      url: 'https://example.com/swamini-vato-1.pdf',
+      url: null,
       icon: '📜',
       size: '1.9 MB',
       pages: 120,
@@ -75,7 +75,7 @@ const PdfLibraryScreen = ({ navigation }) => {
       title: 'Swamini Vato - Part 2',
       category: 'SwaminiVato',
       description: 'Sacred discourses of Gunatitanand Swami',
-      url: 'https://example.com/swamini-vato-2.pdf',
+      url: null,
       icon: '📜',
       size: '2.2 MB',
       pages: 140,
@@ -85,7 +85,7 @@ const PdfLibraryScreen = ({ navigation }) => {
       title: 'Shikshapatri',
       category: 'Shikshapatri',
       description: 'Code of conduct by Lord Swaminarayan',
-      url: 'https://example.com/shikshapatri.pdf',
+      url: null,
       icon: '📋',
       size: '1.5 MB',
       pages: 85,
@@ -95,7 +95,7 @@ const PdfLibraryScreen = ({ navigation }) => {
       title: 'Jai Swaminarayan Aarti',
       category: 'Aarti',
       description: 'Devotional aarti for Lord Swaminarayan',
-      url: 'https://example.com/jai-swaminarayan-aarti.pdf',
+      url: null,
       icon: '🕉️',
       size: '0.8 MB',
       pages: 25,
@@ -105,7 +105,7 @@ const PdfLibraryScreen = ({ navigation }) => {
       title: 'Gunatitanand Swami Aarti',
       category: 'Aarti',
       description: 'Devotional aarti for Gunatitanand Swami',
-      url: 'https://example.com/gunatitanand-aarti.pdf',
+      url: null,
       icon: '🕉️',
       size: '0.9 MB',
       pages: 30,
@@ -115,7 +115,7 @@ const PdfLibraryScreen = ({ navigation }) => {
       title: 'Shree Hari Stuti',
       category: 'Stotra',
       description: 'Devotional hymns in praise of Lord Hari',
-      url: 'https://example.com/shree-hari-stuti.pdf',
+      url: null,
       icon: '🙏',
       size: '1.2 MB',
       pages: 45,
@@ -130,6 +130,30 @@ const PdfLibraryScreen = ({ navigation }) => {
   });
 
   const openPdf = (pdf) => {
+    // Check if PDF file is available
+    if (!pdf.url) {
+      Alert.alert(
+        'Demo Mode',
+        `Opening: ${pdf.title}\n\nThis is a demo. Add real PDF files to enable full viewing.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'View Demo', 
+            onPress: () => {
+              navigation.navigate('PdfViewer', { 
+                pdf: {
+                  ...pdf,
+                  url: null,
+                  demoContent: `This is a demo view of ${pdf.title}.\n\nCategory: ${pdf.category}\nPages: ${pdf.pages}\nSize: ${pdf.size}\n\nIn the full version, you would see the actual PDF content here.`
+                } 
+              });
+            }
+          }
+        ]
+      );
+      return;
+    }
+
     navigation.navigate('PdfViewer', { pdf });
   };
 
