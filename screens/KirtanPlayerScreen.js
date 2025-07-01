@@ -9,17 +9,17 @@ import {
   TextInput,
   Alert,
   Dimensions,
-  ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-audio';
+import { Audio } from 'expo-av';
 import { themeColors, commonStyles } from '../config/theme';
 import { kirtanApi } from '../config/api';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const KirtanPlayerScreen = ({ navigation }) => {
+  // State management
   const [kirtans, setKirtans] = useState([]);
   const [filteredKirtans, setFilteredKirtans] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -37,30 +37,24 @@ const KirtanPlayerScreen = ({ navigation }) => {
   const [duration, setDuration] = useState(0);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
 
-  // Fetch kirtans from API
+  // Fetch kirtans from API or fallback to demo data
   const fetchKirtans = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Get user token from storage (you'll need to implement this)
-      const token = null; // Replace with actual token retrieval
-      
+      // TODO: Replace with actual token retrieval if needed
+      const token = null;
       const result = await kirtanApi.getAllKirtans(token);
-      
       if (result.success) {
         setKirtans(result.data);
         setFilteredKirtans(result.data);
       } else {
         setError(result.error);
-        // Fallback to demo data if API fails
         setKirtans(getDemoKirtans());
         setFilteredKirtans(getDemoKirtans());
       }
     } catch (error) {
-      console.error('Error fetching kirtans:', error);
       setError('Failed to load kirtans');
-      // Fallback to demo data
       setKirtans(getDemoKirtans());
       setFilteredKirtans(getDemoKirtans());
     } finally {
@@ -68,21 +62,17 @@ const KirtanPlayerScreen = ({ navigation }) => {
     }
   };
 
-  // Fetch categories from API
+  // Fetch categories from API or fallback
   const fetchCategories = async () => {
     try {
-      const token = null; // Replace with actual token retrieval
+      const token = null;
       const result = await kirtanApi.getKirtanCategories(token);
-      
       if (result.success) {
         setCategories(['All', ...result.data]);
       } else {
-        // Fallback to demo categories
         setCategories(['All', 'Bhajans', 'Mantras', 'Kirtans', 'Aartis', 'Stotras']);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
-      // Fallback to demo categories
       setCategories(['All', 'Bhajans', 'Mantras', 'Kirtans', 'Aartis', 'Stotras']);
     }
   };
@@ -93,12 +83,10 @@ const KirtanPlayerScreen = ({ navigation }) => {
       setFilteredKirtans(kirtans);
       return;
     }
-
     try {
       setIsSearching(true);
-      const token = null; // Replace with actual token retrieval
+      const token = null;
       const result = await kirtanApi.searchKirtans(query, token);
-      
       if (result.success) {
         setFilteredKirtans(result.data);
       } else {
@@ -110,7 +98,6 @@ const KirtanPlayerScreen = ({ navigation }) => {
         setFilteredKirtans(filtered);
       }
     } catch (error) {
-      console.error('Error searching kirtans:', error);
       // Fallback to local search
       const filtered = kirtans.filter(kirtan =>
         kirtan.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -137,12 +124,12 @@ const KirtanPlayerScreen = ({ navigation }) => {
   const getDemoKirtans = () => [
     {
       id: '1',
-      title: 'Jai Shree Krishna',
+      title: 'Sample Kirtan',
       artist: 'Traditional',
-      category: 'Bhajans',
+      category: 'Kirtans',
       duration: '5:32',
       thumbnail: '🕉️',
-      audioUrl: null,
+      audioUrl: require('../assets/Kirtans/Aankhthi_Yogi_Bapane_me_Joya.mp3'),
     },
     {
       id: '2',
@@ -173,14 +160,16 @@ const KirtanPlayerScreen = ({ navigation }) => {
     },
   ];
 
+  // Cleanup audio on unmount
   useEffect(() => {
-    return sound
-      ? () => {
-          sound.unloadAsync();
-        }
-      : undefined;
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
   }, [sound]);
 
+  // Update playback status
   useEffect(() => {
     if (sound) {
       sound.setOnPlaybackStatusUpdate((status) => {
@@ -193,76 +182,36 @@ const KirtanPlayerScreen = ({ navigation }) => {
     }
   }, [sound]);
 
+  // Play selected kirtan
   const playKirtan = async (kirtan) => {
     try {
       setIsLoadingAudio(true);
-      
-      // Check if audio file is available
-      if (!kirtan.audioUrl) {
-        // Demo mode - simulate playing
-        setCurrentKirtan(kirtan);
-        setIsPlaying(true);
-        setCurrentTime(0);
-        setDuration(parseInt(kirtan.duration.split(':')[0]) * 60 + parseInt(kirtan.duration.split(':')[1]));
-        
-        // Simulate progress updates
-        const progressInterval = setInterval(() => {
-          setCurrentTime(prev => {
-            const newTime = prev + 1;
-            if (newTime >= duration) {
-              clearInterval(progressInterval);
-              setIsPlaying(false);
-              return 0;
-            }
-            return newTime;
-          });
-        }, 1000);
-        
-        Alert.alert(
-          'Demo Mode', 
-          `Playing: ${kirtan.title}\n\nThis is a demo. Add real audio files to enable full playback.`,
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
       // Stop current audio if playing
       if (sound) {
         await sound.stopAsync();
         await sound.unloadAsync();
       }
-
-      // Get audio URL from API
-      let audioUrl = kirtan.audioUrl;
-      if (kirtan.id && !audioUrl.startsWith('http')) {
-        // If it's an API ID, get the full URL
-        audioUrl = kirtanApi.getKirtanAudioUrl(kirtan.id);
+      let source = kirtan.audioUrl;
+      if (!source) {
+        Alert.alert('No audio file found');
+        return;
       }
-
-      // Load and play new audio
-      const { sound: newSound } = await Audio.Sound.createAsync({ uri: audioUrl });
+      const { sound: newSound } = await Audio.Sound.createAsync(source);
       setSound(newSound);
       setCurrentKirtan(kirtan);
       setIsPlaying(true);
       setCurrentTime(0);
-      
       await newSound.playAsync();
-      Alert.alert('Playing', `Now playing: ${kirtan.title}`);
     } catch (error) {
-      console.error('Error playing audio:', error);
-      Alert.alert(
-        'Audio Error', 
-        'Could not play audio. Please ensure audio files are properly configured.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Audio Error', 'Could not play audio.');
     } finally {
       setIsLoadingAudio(false);
     }
   };
 
+  // Toggle play/pause
   const togglePlayPause = async () => {
     if (!sound) return;
-
     try {
       if (isPlaying) {
         await sound.pauseAsync();
@@ -270,10 +219,11 @@ const KirtanPlayerScreen = ({ navigation }) => {
         await sound.playAsync();
       }
     } catch (error) {
-      console.error('Error toggling playback:', error);
+      Alert.alert('Playback Error', 'Could not toggle playback.');
     }
   };
 
+  // Skip to next kirtan
   const skipToNext = async () => {
     if (currentKirtan) {
       const currentIndex = kirtans.findIndex(k => k.id === currentKirtan.id);
@@ -282,6 +232,7 @@ const KirtanPlayerScreen = ({ navigation }) => {
     }
   };
 
+  // Skip to previous kirtan
   const skipToPrevious = async () => {
     if (currentKirtan) {
       const currentIndex = kirtans.findIndex(k => k.id === currentKirtan.id);
@@ -290,16 +241,19 @@ const KirtanPlayerScreen = ({ navigation }) => {
     }
   };
 
+  // Format time for display
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Render a single kirtan item
   const renderKirtanItem = ({ item }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.kirtanItem}
       onPress={() => playKirtan(item)}
+      accessibilityLabel={`Play ${item.title} by ${item.artist}`}
     >
       <View style={styles.kirtanThumbnail}>
         <Text style={styles.thumbnailText}>{item.thumbnail}</Text>
@@ -321,13 +275,15 @@ const KirtanPlayerScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
+  // Render a single category item
   const renderCategoryItem = ({ item }) => (
     <TouchableOpacity
       style={[
         styles.categoryItem,
         selectedCategory === item && styles.selectedCategory
       ]}
-      onPress={() => setSelectedCategory(item)}
+      onPress={() => filterByCategory(item)}
+      accessibilityLabel={`Filter by ${item}`}
     >
       <Text style={[
         styles.categoryText,
@@ -338,11 +294,13 @@ const KirtanPlayerScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
+  // Initial data fetch
   useEffect(() => {
     fetchKirtans();
     fetchCategories();
   }, []);
 
+  // Search effect
   useEffect(() => {
     if (searchQuery) {
       const timeoutId = setTimeout(() => {
@@ -372,9 +330,10 @@ const KirtanPlayerScreen = ({ navigation }) => {
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor={themeColors.textMuted}
+            accessibilityLabel="Search kirtans"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel="Clear search">
               <Ionicons name="close-circle" size={20} color={themeColors.textMuted} />
             </TouchableOpacity>
           )}
@@ -394,13 +353,17 @@ const KirtanPlayerScreen = ({ navigation }) => {
       </View>
 
       {/* Kirtans List */}
-      <FlatList
-        data={filteredKirtans}
-        renderItem={renderKirtanItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.kirtansList}
-        showsVerticalScrollIndicator={false}
-      />
+      {isLoading ? (
+        <ActivityIndicator size="large" color={themeColors.primary} style={{ marginTop: 40 }} />
+      ) : (
+        <FlatList
+          data={filteredKirtans}
+          renderItem={renderKirtanItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.kirtansList}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* Now Playing Bar */}
       {currentKirtan && (
@@ -419,23 +382,23 @@ const KirtanPlayerScreen = ({ navigation }) => {
               </Text>
             </View>
           </View>
-          
           <View style={styles.controls}>
-            <TouchableOpacity style={styles.controlButton} onPress={skipToPrevious}>
+            <TouchableOpacity style={styles.controlButton} onPress={skipToPrevious} accessibilityLabel="Previous">
               <Ionicons name="play-skip-back" size={24} color={themeColors.accent} />
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.playPauseButton} 
+            <TouchableOpacity
+              style={styles.playPauseButton}
               onPress={togglePlayPause}
-              disabled={isLoading}
+              disabled={isLoadingAudio}
+              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
             >
-              <Ionicons 
-                name={isLoading ? "hourglass-outline" : (isPlaying ? "pause" : "play")} 
-                size={28} 
-                color={themeColors.textPrimary} 
+              <Ionicons
+                name={isLoadingAudio ? 'hourglass-outline' : isPlaying ? 'pause' : 'play'}
+                size={28}
+                color={themeColors.textPrimary}
               />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.controlButton} onPress={skipToNext}>
+            <TouchableOpacity style={styles.controlButton} onPress={skipToNext} accessibilityLabel="Next">
               <Ionicons name="play-skip-forward" size={24} color={themeColors.accent} />
             </TouchableOpacity>
           </View>

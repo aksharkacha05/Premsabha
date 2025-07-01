@@ -35,7 +35,7 @@ const PdfLibraryScreen = ({ navigation }) => {
       title: 'Vachanamrut - Gadhada I',
       category: 'Vachanamrut',
       description: 'Sacred discourses of Lord Swaminarayan',
-      url: null,
+      url: { uri: 'bundle-assets://swadhyay/ChaitanayDhodh.pdf' },
       icon: '📖',
       size: '2.5 MB',
       pages: 150,
