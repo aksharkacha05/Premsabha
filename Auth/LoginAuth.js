@@ -10,85 +10,29 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../config/firebase';
+import { themeColors, commonStyles } from '../config/theme';
+import Snackbar from './Snackbar';
 
 const LoginAuth = ({ navigation }) => {
-  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const [snackbar, setSnackbar] = useState({ visible: false, message: '', type: 'info' });
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    if (!validateEmail(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
-      return;
-    }
-
     setIsLoading(true);
-
+    const email = fullName.toLowerCase().replace(/\s+/g, '') + '@premsabha.com';
     try {
-      console.log('Attempting login with:', { email: email, password: '***' });
-      
-      const response = await fetch('https://your-api-domain.com/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email,
-          password: password,
-        }),
-      });
-
-      console.log('Response status:', response.status);
-
-      const data = await response.json();
-      console.log('Response data:', data);
-
-      if (response.ok) {
-        // Handle successful login
-        Alert.alert('Success', 'Login successful!');
-        // Navigate to main app on successful login
-        navigation.replace('MainApp');
-      } else {
-        Alert.alert('Error', data.message || `Login failed (Status: ${response.status})`);
-      }
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      setSnackbar({ visible: true, message: 'Logged in!', type: 'success' });
+      navigation.replace('MainApp', { user: { name: fullName, email } });
     } catch (error) {
-      console.error('Login error details:', error);
-      
-      // More specific error messages
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        Alert.alert(
-          'Network Error', 
-          'Unable to connect to the server. Please check your internet connection and try again.'
-        );
-      } else if (error.name === 'AbortError') {
-        Alert.alert(
-          'Request Timeout', 
-          'The request took too long. Please try again.'
-        );
-      } else {
-        Alert.alert(
-          'Connection Error', 
-          `Network error: ${error.message}. Please try again.`
-        );
-      }
+      setSnackbar({ visible: true, message: error.message, type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -96,30 +40,33 @@ const LoginAuth = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {isLoading && (
+        <View style={styles.loaderOverlay}>
+          <ActivityIndicator size="large" color={themeColors.accent} />
+        </View>
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer}>
           <View style={styles.header}>
+            <Image source={require('../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to your account</Text>
           </View>
-
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>Full Name</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
+                placeholder="Enter your full name"
+                value={fullName}
+                onChangeText={setFullName}
+                autoCapitalize="words"
                 autoCorrect={false}
               />
             </View>
-
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Password</Text>
               <TextInput
@@ -131,7 +78,6 @@ const LoginAuth = ({ navigation }) => {
                 autoCapitalize="none"
               />
             </View>
-
             <TouchableOpacity
               style={[styles.loginButton, isLoading && styles.disabledButton]}
               onPress={handleLogin}
@@ -143,7 +89,6 @@ const LoginAuth = ({ navigation }) => {
                 <Text style={styles.loginButtonText}>Sign In</Text>
               )}
             </TouchableOpacity>
-
             <View style={styles.footer}>
               <Text style={styles.footerText}>Don't have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
@@ -153,15 +98,18 @@ const LoginAuth = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Snackbar
+        visible={snackbar.visible}
+        message={snackbar.message}
+        type={snackbar.type}
+        onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
+      />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
+  container: commonStyles.safeArea,
   keyboardView: {
     flex: 1,
   },
@@ -177,16 +125,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: themeColors.primary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#7f8c8d',
+    color: themeColors.textSecondary,
     textAlign: 'center',
   },
   form: {
-    backgroundColor: '#fff',
+    backgroundColor: themeColors.backgroundCard,
     borderRadius: 12,
     padding: 24,
     shadowColor: '#000',
@@ -204,30 +152,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: themeColors.textPrimary,
     marginBottom: 8,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e1e8ed',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: '#f8f9fa',
-  },
-  loginButton: {
-    backgroundColor: '#3498db',
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 10,
-  },
+  input: commonStyles.input,
+  loginButton: commonStyles.primaryButton,
   disabledButton: {
-    backgroundColor: '#bdc3c7',
+    backgroundColor: themeColors.primaryLighter,
   },
   loginButtonText: {
-    color: '#fff',
+    color: themeColors.textPrimary,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -238,12 +172,25 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 16,
-    color: '#7f8c8d',
+    color: themeColors.textSecondary,
   },
   linkText: {
     fontSize: 16,
-    color: '#3498db',
+    color: themeColors.accent,
     fontWeight: '600',
+  },
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: themeColors.backgroundTransparent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  logoImage: {
+    width: 56,
+    height: 56,
+    marginBottom: 8,
+    alignSelf: 'center',
   },
 });
 

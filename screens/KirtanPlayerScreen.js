@@ -10,11 +10,15 @@ import {
   Alert,
   Dimensions,
   ActivityIndicator,
+  Modal,
+  Animated,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { themeColors, commonStyles } from '../config/theme';
-import { kirtanApi } from '../config/api';
+import { contentApi } from '../config/api';
+import Snackbar from '../Auth/Snackbar';
 
 const { width } = Dimensions.get('window');
 
@@ -22,188 +26,107 @@ const KirtanPlayerScreen = ({ navigation }) => {
   // State management
   const [kirtans, setKirtans] = useState([]);
   const [filteredKirtans, setFilteredKirtans] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSearching, setIsSearching] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Audio player states
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [sound, setSound] = useState(null);
-  const [currentKirtan, setCurrentKirtan] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentKirtan, setCurrentKirtan] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
-
-  // Fetch kirtans from API or fallback to demo data
-  const fetchKirtans = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      // TODO: Replace with actual token retrieval if needed
-      const token = null;
-      const result = await kirtanApi.getAllKirtans(token);
-      if (result.success) {
-        setKirtans(result.data);
-        setFilteredKirtans(result.data);
-      } else {
-        setError(result.error);
-        setKirtans(getDemoKirtans());
-        setFilteredKirtans(getDemoKirtans());
-      }
-    } catch (error) {
-      setError('Failed to load kirtans');
-      setKirtans(getDemoKirtans());
-      setFilteredKirtans(getDemoKirtans());
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch categories from API or fallback
-  const fetchCategories = async () => {
-    try {
-      const token = null;
-      const result = await kirtanApi.getKirtanCategories(token);
-      if (result.success) {
-        setCategories(['All', ...result.data]);
-      } else {
-        setCategories(['All', 'Bhajans', 'Mantras', 'Kirtans', 'Aartis', 'Stotras']);
-      }
-    } catch (error) {
-      setCategories(['All', 'Bhajans', 'Mantras', 'Kirtans', 'Aartis', 'Stotras']);
-    }
-  };
-
-  // Search kirtans
-  const searchKirtans = async (query) => {
-    if (!query.trim()) {
-      setFilteredKirtans(kirtans);
-      return;
-    }
-    try {
-      setIsSearching(true);
-      const token = null;
-      const result = await kirtanApi.searchKirtans(query, token);
-      if (result.success) {
-        setFilteredKirtans(result.data);
-      } else {
-        // Fallback to local search
-        const filtered = kirtans.filter(kirtan =>
-          kirtan.title.toLowerCase().includes(query.toLowerCase()) ||
-          kirtan.artist.toLowerCase().includes(query.toLowerCase())
-        );
-        setFilteredKirtans(filtered);
-      }
-    } catch (error) {
-      // Fallback to local search
-      const filtered = kirtans.filter(kirtan =>
-        kirtan.title.toLowerCase().includes(query.toLowerCase()) ||
-        kirtan.artist.toLowerCase().includes(query.toLowerCase())
-      );
-      setFilteredKirtans(filtered);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  // Filter by category
-  const filterByCategory = (category) => {
-    setSelectedCategory(category);
-    if (category === 'All') {
-      setFilteredKirtans(kirtans);
-    } else {
-      const filtered = kirtans.filter(kirtan => kirtan.category === category);
-      setFilteredKirtans(filtered);
-    }
-  };
-
-  // Demo data fallback
-  const getDemoKirtans = () => [
-    {
-      id: '1',
-      title: 'Sample Kirtan',
-      artist: 'Traditional',
-      category: 'Kirtans',
-      duration: '5:32',
-      thumbnail: '🕉️',
-      audioUrl: require('../assets/Kirtans/Aankhthi_Yogi_Bapane_me_Joya.mp3'),
-    },
-    {
-      id: '2',
-      title: 'Hare Krishna Hare Ram',
-      artist: 'Traditional',
-      category: 'Mantras',
-      duration: '8:15',
-      thumbnail: '🕉️',
-      audioUrl: null,
-    },
-    {
-      id: '3',
-      title: 'Govind Bolo Hari Gopal Bolo',
-      artist: 'Traditional',
-      category: 'Kirtans',
-      duration: '6:42',
-      thumbnail: '🕉️',
-      audioUrl: null,
-    },
-    {
-      id: '4',
-      title: 'Aarti Kunj Bihari Ki',
-      artist: 'Traditional',
-      category: 'Aartis',
-      duration: '4:18',
-      thumbnail: '🕉️',
-      audioUrl: null,
-    },
-  ];
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [snackbar, setSnackbar] = useState({ visible: false, message: '', type: 'info' });
+  const [isPlayerModalVisible, setPlayerModalVisible] = useState(false);
+  const [isTogglingPlayback, setIsTogglingPlayback] = useState(false);
 
   // Cleanup audio on unmount
   useEffect(() => {
     return () => {
       if (sound) {
-        sound.unloadAsync();
+        sound.unloadAsync().catch(() => {});
       }
     };
   }, [sound]);
 
-  // Update playback status
-  useEffect(() => {
-    if (sound) {
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded) {
-          setIsPlaying(status.isPlaying);
-          setCurrentTime(status.positionMillis / 1000);
-          setDuration(status.durationMillis / 1000);
-        }
-      });
+  // Fetch kirtans from API
+  const fetchKirtans = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const token = null;
+      const result = await contentApi.getAllContent(token);
+      if (result.success && Array.isArray(result.data.kirtans)) {
+        const kirtans = result.data.kirtans.map((k, idx) => ({
+          id: idx.toString(),
+          title: k.title,
+          singer: k.singer,
+          downloadUrl: k.downloadUrl,
+        }));
+        setKirtans(kirtans);
+        setFilteredKirtans(kirtans);
+      } else {
+        setError(result.error || 'Invalid data from server.');
+        setKirtans([]);
+        setFilteredKirtans([]);
+      }
+    } catch (error) {
+      setError('Failed to load kirtans. Please check your connection.');
+      setKirtans([]);
+      setFilteredKirtans([]);
+    } finally {
+      setIsLoading(false);
     }
-  }, [sound]);
+  };
+
+  // Fetch categories (stubbed for now)
+  const fetchCategories = async () => {
+    setCategories(['All']);
+  };
+
+  useEffect(() => {
+    fetchKirtans();
+    fetchCategories();
+  }, []);
 
   // Play selected kirtan
-  const playKirtan = async (kirtan) => {
+  const playKirtan = async (kirtan, index) => {
+    if (!kirtan || !kirtan.downloadUrl) {
+      setSnackbar({ visible: true, message: 'No audio file found for this kirtan.', type: 'error' });
+      return;
+    }
     try {
       setIsLoadingAudio(true);
-      // Stop current audio if playing
+      setError(null);
       if (sound) {
         await sound.stopAsync();
         await sound.unloadAsync();
       }
-      let source = kirtan.audioUrl;
-      if (!source) {
-        Alert.alert('No audio file found');
-        return;
-      }
-      const { sound: newSound } = await Audio.Sound.createAsync(source);
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: kirtan.downloadUrl },
+        { shouldPlay: true },
+        (status) => {
+          if (status.isLoaded) {
+            setIsPlaying(status.isPlaying);
+            setCurrentTime(status.positionMillis / 1000);
+            setDuration(status.durationMillis / 1000);
+          } else if (status.error) {
+            setError('Playback error: ' + status.error);
+            setSnackbar({ visible: true, message: 'Playback error: ' + status.error, type: 'error' });
+          }
+        }
+      );
       setSound(newSound);
       setCurrentKirtan(kirtan);
+      setCurrentIndex(index);
       setIsPlaying(true);
       setCurrentTime(0);
-      await newSound.playAsync();
+      setSnackbar({ visible: true, message: `Now playing: ${kirtan.title}`, type: 'success' });
     } catch (error) {
-      Alert.alert('Audio Error', 'Could not play audio.');
+      setError('Could not play audio.');
+      setSnackbar({ visible: true, message: 'Could not play audio.', type: 'error' });
     } finally {
       setIsLoadingAudio(false);
     }
@@ -211,7 +134,8 @@ const KirtanPlayerScreen = ({ navigation }) => {
 
   // Toggle play/pause
   const togglePlayPause = async () => {
-    if (!sound) return;
+    if (!sound || isTogglingPlayback) return;
+    setIsTogglingPlayback(true);
     try {
       if (isPlaying) {
         await sound.pauseAsync();
@@ -219,26 +143,45 @@ const KirtanPlayerScreen = ({ navigation }) => {
         await sound.playAsync();
       }
     } catch (error) {
-      Alert.alert('Playback Error', 'Could not toggle playback.');
+      setError('Playback error.');
+      setSnackbar({ visible: true, message: 'Could not toggle playback.', type: 'error' });
+    } finally {
+      setIsTogglingPlayback(false);
     }
   };
 
   // Skip to next kirtan
   const skipToNext = async () => {
-    if (currentKirtan) {
-      const currentIndex = kirtans.findIndex(k => k.id === currentKirtan.id);
-      const nextIndex = (currentIndex + 1) % kirtans.length;
-      await playKirtan(kirtans[nextIndex]);
-    }
+    if (filteredKirtans.length === 0) return;
+    const nextIndex = (currentIndex + 1) % filteredKirtans.length;
+    playKirtan(filteredKirtans[nextIndex], nextIndex);
   };
 
   // Skip to previous kirtan
   const skipToPrevious = async () => {
-    if (currentKirtan) {
-      const currentIndex = kirtans.findIndex(k => k.id === currentKirtan.id);
-      const prevIndex = currentIndex === 0 ? kirtans.length - 1 : currentIndex - 1;
-      await playKirtan(kirtans[prevIndex]);
+    if (filteredKirtans.length === 0) return;
+    const prevIndex = currentIndex === 0 ? filteredKirtans.length - 1 : currentIndex - 1;
+    playKirtan(filteredKirtans[prevIndex], prevIndex);
+  };
+
+  // Search kirtans
+  const searchKirtans = (query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setFilteredKirtans(kirtans);
+      return;
     }
+    const filtered = kirtans.filter(kirtan =>
+      kirtan.title.toLowerCase().includes(query.toLowerCase()) ||
+      (kirtan.singer && kirtan.singer.toLowerCase().includes(query.toLowerCase()))
+    );
+    setFilteredKirtans(filtered);
+  };
+
+  // Filter by category (stubbed)
+  const filterByCategory = (category) => {
+    setSelectedCategory(category);
+    setFilteredKirtans(kirtans); // Only 'All' for now
   };
 
   // Format time for display
@@ -249,25 +192,24 @@ const KirtanPlayerScreen = ({ navigation }) => {
   };
 
   // Render a single kirtan item
-  const renderKirtanItem = ({ item }) => (
+  const renderKirtanItem = ({ item, index }) => (
     <TouchableOpacity
       style={styles.kirtanItem}
-      onPress={() => playKirtan(item)}
-      accessibilityLabel={`Play ${item.title} by ${item.artist}`}
+      onPress={() => playKirtan(item, index)}
+      accessibilityLabel={`Play ${item.title} by ${item.singer}`}
     >
       <View style={styles.kirtanThumbnail}>
-        <Text style={styles.thumbnailText}>{item.thumbnail}</Text>
+        <Ionicons name="musical-notes" size={24} color={themeColors.primary} />
       </View>
       <View style={styles.kirtanInfo}>
         <Text style={styles.kirtanTitle} numberOfLines={1}>
           {item.title}
         </Text>
         <Text style={styles.kirtanArtist} numberOfLines={1}>
-          {item.artist} • {item.category}
+          {item.singer}
         </Text>
       </View>
       <View style={styles.kirtanActions}>
-        <Text style={styles.kirtanDuration}>{item.duration}</Text>
         <TouchableOpacity style={styles.playButton}>
           <Ionicons name="play" size={16} color="#3498db" />
         </TouchableOpacity>
@@ -275,45 +217,54 @@ const KirtanPlayerScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  // Render a single category item
-  const renderCategoryItem = ({ item }) => (
-    <TouchableOpacity
-      style={[
-        styles.categoryItem,
-        selectedCategory === item && styles.selectedCategory
-      ]}
-      onPress={() => filterByCategory(item)}
-      accessibilityLabel={`Filter by ${item}`}
-    >
-      <Text style={[
-        styles.categoryText,
-        selectedCategory === item && styles.selectedCategoryText
-      ]}>
-        {item}
-      </Text>
-    </TouchableOpacity>
+  // Now Playing Bar (basic)
+  const NowPlayingBar = () => (
+    currentKirtan ? (
+      <TouchableOpacity style={styles.nowPlayingBar} onPress={() => setPlayerModalVisible(true)} activeOpacity={0.9}>
+        <View style={styles.nowPlayingInfo}>
+          <Image source={require('../assets/music-logo.png')} style={styles.musicLogo} resizeMode="contain" />
+          <View style={styles.nowPlayingText}>
+            <Text style={styles.nowPlayingTitle} numberOfLines={1}>{currentKirtan.title}</Text>
+            <Text style={styles.nowPlayingArtist} numberOfLines={1}>{currentKirtan.singer}</Text>
+            <Text style={styles.nowPlayingTime}>{formatTime(currentTime)} / {formatTime(duration)}</Text>
+          </View>
+        </View>
+        <View style={styles.controls}>
+          <TouchableOpacity style={styles.controlButton} onPress={skipToPrevious} accessibilityLabel="Previous">
+            <Ionicons name="play-skip-back" size={24} color={themeColors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.playPauseButton}
+            onPress={togglePlayPause}
+            disabled={isLoadingAudio || isTogglingPlayback}
+            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isTogglingPlayback ? (
+              <ActivityIndicator size={28} color={themeColors.textPrimary} />
+            ) : (
+              <Ionicons
+                name={isLoadingAudio ? 'hourglass-outline' : isPlaying ? 'pause' : 'play'}
+                size={28}
+                color={themeColors.textPrimary}
+              />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.controlButton} onPress={skipToNext} accessibilityLabel="Next">
+            <Ionicons name="play-skip-forward" size={24} color={themeColors.accent} />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    ) : null
   );
 
-  // Initial data fetch
-  useEffect(() => {
-    fetchKirtans();
-    fetchCategories();
-  }, []);
-
-  // Search effect
-  useEffect(() => {
-    if (searchQuery) {
-      const timeoutId = setTimeout(() => {
-        searchKirtans(searchQuery);
-      }, 500);
-      return () => clearTimeout(timeoutId);
-    } else {
-      setFilteredKirtans(kirtans);
-    }
-  }, [searchQuery, kirtans]);
-
+  // Main render
   return (
     <SafeAreaView style={commonStyles.safeArea}>
+      {(isLoading || isLoadingAudio) && (
+        <View style={styles.loaderOverlay}>
+          <ActivityIndicator size="large" color={themeColors.accent} />
+        </View>
+      )}
       {/* Header */}
       <View style={styles.header}>
         <Text style={commonStyles.headingLarge}>Kirtan Player</Text>
@@ -328,23 +279,39 @@ const KirtanPlayerScreen = ({ navigation }) => {
             style={styles.searchInput}
             placeholder="Search kirtans..."
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={searchKirtans}
             placeholderTextColor={themeColors.textMuted}
             accessibilityLabel="Search kirtans"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel="Clear search">
+            <TouchableOpacity onPress={() => searchKirtans('')} accessibilityLabel="Clear search">
               <Ionicons name="close-circle" size={20} color={themeColors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Categories */}
+      {/* Categories (stubbed) */}
       <View style={styles.categoriesContainer}>
         <FlatList
           data={categories}
-          renderItem={renderCategoryItem}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.categoryItem,
+                selectedCategory === item && styles.selectedCategory
+              ]}
+              onPress={() => filterByCategory(item)}
+              accessibilityLabel={`Filter by ${item}`}
+            >
+              <Text style={[
+                styles.categoryText,
+                selectedCategory === item && styles.selectedCategoryText
+              ]}>
+                {item}
+              </Text>
+            </TouchableOpacity>
+          )}
           keyExtractor={(item) => item}
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -355,6 +322,14 @@ const KirtanPlayerScreen = ({ navigation }) => {
       {/* Kirtans List */}
       {isLoading ? (
         <ActivityIndicator size="large" color={themeColors.primary} style={{ marginTop: 40 }} />
+      ) : error ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
+          <Text style={{ color: 'red' }}>{error}</Text>
+        </View>
+      ) : filteredKirtans.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
+          <Text>No kirtans found.</Text>
+        </View>
       ) : (
         <FlatList
           data={filteredKirtans}
@@ -366,44 +341,67 @@ const KirtanPlayerScreen = ({ navigation }) => {
       )}
 
       {/* Now Playing Bar */}
-      {currentKirtan && (
-        <View style={styles.nowPlayingBar}>
-          <View style={styles.nowPlayingInfo}>
-            <Text style={styles.nowPlayingThumbnail}>{currentKirtan.thumbnail}</Text>
-            <View style={styles.nowPlayingText}>
-              <Text style={styles.nowPlayingTitle} numberOfLines={1}>
-                {currentKirtan.title}
-              </Text>
-              <Text style={styles.nowPlayingArtist} numberOfLines={1}>
-                {currentKirtan.artist}
-              </Text>
-              <Text style={styles.nowPlayingTime}>
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </Text>
+      <NowPlayingBar />
+
+      <Snackbar
+        visible={snackbar.visible}
+        message={snackbar.message}
+        type={snackbar.type}
+        onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
+      />
+
+      {/* Add the modal player UI */}
+      <Modal
+        visible={isPlayerModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setPlayerModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.modalClose} onPress={() => setPlayerModalVisible(false)}>
+              <Ionicons name="close" size={28} color={themeColors.textPrimary} />
+            </TouchableOpacity>
+            <Image source={require('../assets/music-logo.png')} style={styles.musicLogo} resizeMode="contain" />
+            <Text style={styles.modalTitle} numberOfLines={2}>{currentKirtan?.title}</Text>
+            <Text style={styles.modalArtist}>{currentKirtan?.singer}</Text>
+            {/* Progress Bar */}
+            <View style={styles.progressBarContainer}>
+              <View style={styles.progressBarBg}>
+                <Animated.View style={[styles.progressBarFill, { width: duration ? `${(currentTime/duration)*100}%` : '0%' }]} />
+              </View>
+              <View style={styles.progressTimeRow}>
+                <Text style={styles.progressTime}>{formatTime(currentTime)}</Text>
+                <Text style={styles.progressTime}>{formatTime(duration)}</Text>
+              </View>
+            </View>
+            {/* Controls */}
+            <View style={styles.modalControls}>
+              <TouchableOpacity style={styles.modalControlButton} onPress={skipToPrevious}>
+                <Ionicons name="play-skip-back" size={36} color={themeColors.accent} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalPlayPauseButton}
+                onPress={togglePlayPause}
+                disabled={isLoadingAudio || isTogglingPlayback}
+              >
+                {isTogglingPlayback ? (
+                  <ActivityIndicator size={48} color={themeColors.textPrimary} />
+                ) : (
+                  <Ionicons
+                    name={isLoadingAudio ? 'hourglass-outline' : isPlaying ? 'pause' : 'play'}
+                    size={48}
+                    color={themeColors.textPrimary}
+                  />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalControlButton} onPress={skipToNext}>
+                <Ionicons name="play-skip-forward" size={36} color={themeColors.accent} />
+              </TouchableOpacity>
             </View>
           </View>
-          <View style={styles.controls}>
-            <TouchableOpacity style={styles.controlButton} onPress={skipToPrevious} accessibilityLabel="Previous">
-              <Ionicons name="play-skip-back" size={24} color={themeColors.accent} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.playPauseButton}
-              onPress={togglePlayPause}
-              disabled={isLoadingAudio}
-              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-            >
-              <Ionicons
-                name={isLoadingAudio ? 'hourglass-outline' : isPlaying ? 'pause' : 'play'}
-                size={28}
-                color={themeColors.textPrimary}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.controlButton} onPress={skipToNext} accessibilityLabel="Next">
-              <Ionicons name="play-skip-forward" size={24} color={themeColors.accent} />
-            </TouchableOpacity>
-          </View>
         </View>
-      )}
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -549,9 +547,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  nowPlayingThumbnail: {
-    fontSize: 20,
+  musicLogo: {
+    width: 48,
+    height: 48,
     marginRight: 12,
+    marginBottom: 5,
+    alignSelf: 'center',
+    borderRadius: 12,
+    overflow: 'hidden',
+
   },
   nowPlayingText: {
     flex: 1,
@@ -588,6 +592,91 @@ const styles = StyleSheet.create({
     backgroundColor: themeColors.accent,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: themeColors.backgroundTransparent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: themeColors.backgroundTransparent,
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: themeColors.backgroundCard,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  modalClose: {
+    position: 'absolute',
+    top: 24,
+    right: 24,
+    zIndex: 2,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: themeColors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalArtist: {
+    fontSize: 18,
+    color: themeColors.textSecondary,
+    marginBottom: 24,
+  },
+  progressBarContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  progressBarBg: {
+    width: '100%',
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: themeColors.backgroundLight,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: themeColors.accent,
+  },
+  progressTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  progressTime: {
+    fontSize: 12,
+    color: themeColors.textMuted,
+  },
+  modalControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  modalControlButton: {
+    marginHorizontal: 24,
+  },
+  modalPlayPauseButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: themeColors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 24,
   },
 });
 

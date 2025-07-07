@@ -10,119 +10,37 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '../config/firebase';
+import { themeColors, commonStyles } from '../config/theme';
+import Snackbar from './Snackbar';
 
 const SignUp = ({ navigation }) => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({ visible: false, message: '', type: 'info' });
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const validatePhone = (phone) => {
-    const phoneRegex = /^\+?[\d\s-]{10,}$/;
-    return phoneRegex.test(phone);
-  };
-
   const handleSignUp = async () => {
-    if (!fullName || !email || !password || !confirmPassword || !phone) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    if (fullName.length < 2) {
-      Alert.alert('Error', 'Full name must be at least 2 characters long');
-      return;
-    }
-
-    if (!validateEmail(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-
-    if (!validatePhone(phone)) {
-      Alert.alert('Error', 'Please enter a valid phone number');
-      return;
-    }
-
     setIsLoading(true);
-
+    const email = fullName.toLowerCase().replace(/\s+/g, '') + '@premsabha.com';
     try {
-      console.log('Attempting signup with:', { 
-        fullName, 
-        email, 
-        phone, 
-        password: '***' 
-      });
-      
-      // Using production API endpoint
-      const response = await fetch('https://your-api-domain.com/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          fullName: fullName,
-          email: email,
-          password: password,
-          phone: phone,
-        }),
-      });
-
-      console.log('Signup response status:', response.status);
-      console.log('Signup response headers:', response.headers);
-
-      const data = await response.json();
-      console.log('Signup response data:', data);
-
-      if (response.ok) {
-        Alert.alert('Success', 'Account created successfully!', [
-          {
-            text: 'OK',
-            onPress: () => navigation.replace('MainApp'),
-          },
-        ]);
-      } else {
-        Alert.alert('Error', data.message || `Sign up failed (Status: ${response.status})`);
-      }
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCredential.user, { displayName: fullName });
+      setSnackbar({ visible: true, message: 'Account created!', type: 'success' });
+      navigation.replace('MainApp', { user: { name: fullName, email } });
     } catch (error) {
-      console.error('Signup error details:', error);
-      
-      // More specific error messages
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        Alert.alert(
-          'Network Error', 
-          'Unable to connect to the server. Please check your internet connection and try again.'
-        );
-      } else if (error.name === 'AbortError') {
-        Alert.alert(
-          'Request Timeout', 
-          'The request took too long. Please try again.'
-        );
-      } else {
-        Alert.alert(
-          'Connection Error', 
-          `Network error: ${error.message}. Please try again.`
-        );
-      }
+      setSnackbar({ visible: true, message: error.message, type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -130,12 +48,18 @@ const SignUp = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {isLoading && (
+        <View style={styles.loaderOverlay}>
+          <ActivityIndicator size="large" color={themeColors.accent} />
+        </View>
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer}>
           <View style={styles.header}>
+            <Image source={require('../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>Join us today</Text>
           </View>
@@ -163,18 +87,6 @@ const SignUp = ({ navigation }) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Phone Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your phone number"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                autoCapitalize="none"
               />
             </View>
 
@@ -223,15 +135,18 @@ const SignUp = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Snackbar
+        visible={snackbar.visible}
+        message={snackbar.message}
+        type={snackbar.type}
+        onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
+      />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
+  container: commonStyles.safeArea,
   keyboardView: {
     flex: 1,
   },
@@ -248,16 +163,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: themeColors.primary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#7f8c8d',
+    color: themeColors.textSecondary,
     textAlign: 'center',
   },
   form: {
-    backgroundColor: '#fff',
+    backgroundColor: themeColors.backgroundCard,
     borderRadius: 12,
     padding: 24,
     shadowColor: '#000',
@@ -275,30 +190,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: themeColors.textPrimary,
     marginBottom: 8,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e1e8ed',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: '#f8f9fa',
-  },
-  signUpButton: {
-    backgroundColor: '#27ae60',
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 10,
-  },
+  input: commonStyles.input,
+  signUpButton: commonStyles.primaryButton,
   disabledButton: {
-    backgroundColor: '#bdc3c7',
+    backgroundColor: themeColors.primaryLighter,
   },
   signUpButtonText: {
-    color: '#fff',
+    color: themeColors.textPrimary,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -309,12 +210,25 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 16,
-    color: '#7f8c8d',
+    color: themeColors.textSecondary,
   },
   linkText: {
     fontSize: 16,
-    color: '#3498db',
+    color: themeColors.accent,
     fontWeight: '600',
+  },
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: themeColors.backgroundTransparent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  logoImage: {
+    width: 56,
+    height: 56,
+    marginBottom: 8,
+    alignSelf: 'center',
   },
 });
 

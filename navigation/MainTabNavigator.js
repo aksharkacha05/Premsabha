@@ -76,7 +76,7 @@ const MainTabNavigator = () => {
       />
       <Tab.Screen 
         name="Profile" 
-        component={ProfileScreen}
+        children={(props) => <ProfileScreen {...props} user={props.route.params?.user} />} 
         options={{
           title: 'Profile',
         }}

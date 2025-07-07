@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,20 @@ import {
   Alert,
   Dimensions,
   FlatList,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { themeColors, commonStyles } from '../config/theme';
+import { contentApi } from '../config/api';
 
 const { width } = Dimensions.get('window');
 
 const PdfLibraryScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [pdfs, setPdfs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const categories = [
     { id: 'All', name: 'All Texts', icon: '📚' },
@@ -29,133 +34,81 @@ const PdfLibraryScreen = ({ navigation }) => {
     { id: 'Stotra', name: 'Stotra', icon: '🙏' },
   ];
 
-  const pdfs = [
+  useEffect(() => {
+    const fetchBooks = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await contentApi.getAllContent();
+        if (result.success && Array.isArray(result.data.books)) {
+          setPdfs(result.data.books);
+        } else {
+          // Fallback to demo data if API fails
+          setPdfs(getDemoPdfs());
+        }
+      } catch (err) {
+        // Fallback to demo data if API fails
+        setPdfs(getDemoPdfs());
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchBooks();
+  }, []);
+
+  // Demo PDF data fallback
+  const getDemoPdfs = () => [
     {
-      id: 1,
+      id: '1',
       title: 'Vachanamrut - Gadhada I',
+      description: 'Sacred discourses of Lord Swaminarayan from Gadhada',
       category: 'Vachanamrut',
-      description: 'Sacred discourses of Lord Swaminarayan',
-      url: { uri: 'bundle-assets://swadhyay/ChaitanayDhodh.pdf' },
-      icon: '📖',
-      size: '2.5 MB',
       pages: 150,
-    },
-    {
-      id: 2,
-      title: 'Vachanamrut - Gadhada II',
-      category: 'Vachanamrut',
-      description: 'Sacred discourses of Lord Swaminarayan',
-      url: null,
+      size: '2.5 MB',
       icon: '📖',
-      size: '3.1 MB',
-      pages: 180,
     },
     {
-      id: 3,
-      title: 'Vachanamrut - Gadhada III',
-      category: 'Vachanamrut',
-      description: 'Sacred discourses of Lord Swaminarayan',
-      url: null,
-      icon: '📖',
-      size: '2.8 MB',
-      pages: 165,
-    },
-    {
-      id: 4,
-      title: 'Swamini Vato - Part 1',
+      id: '2',
+      title: 'Swamini Vato - Chapter 1',
+      description: 'Divine conversations and teachings',
       category: 'SwaminiVato',
-      description: 'Sacred discourses of Gunatitanand Swami',
-      url: null,
-      icon: '📜',
-      size: '1.9 MB',
-      pages: 120,
-    },
-    {
-      id: 5,
-      title: 'Swamini Vato - Part 2',
-      category: 'SwaminiVato',
-      description: 'Sacred discourses of Gunatitanand Swami',
-      url: null,
-      icon: '📜',
-      size: '2.2 MB',
-      pages: 140,
-    },
-    {
-      id: 6,
-      title: 'Shikshapatri',
-      category: 'Shikshapatri',
-      description: 'Code of conduct by Lord Swaminarayan',
-      url: null,
-      icon: '📋',
-      size: '1.5 MB',
       pages: 85,
+      size: '1.8 MB',
+      icon: '📜',
     },
     {
-      id: 7,
-      title: 'Jai Swaminarayan Aarti',
+      id: '3',
+      title: 'Shikshapatri - Complete',
+      description: 'The sacred code of conduct by Lord Swaminarayan',
+      category: 'Shikshapatri',
+      pages: 212,
+      size: '3.2 MB',
+      icon: '📋',
+    },
+    {
+      id: '4',
+      title: 'Aarti Kunj Bihari Ki',
+      description: 'Traditional aarti for Lord Krishna',
       category: 'Aarti',
-      description: 'Devotional aarti for Lord Swaminarayan',
-      url: null,
+      pages: 12,
+      size: '500 KB',
       icon: '🕉️',
-      size: '0.8 MB',
-      pages: 25,
     },
     {
-      id: 8,
-      title: 'Gunatitanand Swami Aarti',
-      category: 'Aarti',
-      description: 'Devotional aarti for Gunatitanand Swami',
-      url: null,
-      icon: '🕉️',
-      size: '0.9 MB',
-      pages: 30,
-    },
-    {
-      id: 9,
-      title: 'Shree Hari Stuti',
+      id: '5',
+      title: 'Shree Krishna Stotra',
+      description: 'Devotional hymns in praise of Lord Krishna',
       category: 'Stotra',
-      description: 'Devotional hymns in praise of Lord Hari',
-      url: null,
-      icon: '🙏',
-      size: '1.2 MB',
       pages: 45,
+      size: '1.1 MB',
+      icon: '🙏',
     },
   ];
 
   const filteredPdfs = pdfs.filter(pdf => {
-    const matchesSearch = pdf.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         pdf.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || pdf.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesSearch = pdf.title.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch && (selectedCategory === 'All' || (pdf.category && pdf.category === selectedCategory));
   });
-
-  const openPdf = (pdf) => {
-    // Check if PDF file is available
-    if (!pdf.url) {
-      Alert.alert(
-        'Demo Mode',
-        `Opening: ${pdf.title}\n\nThis is a demo. Add real PDF files to enable full viewing.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'View Demo', 
-            onPress: () => {
-              navigation.navigate('PdfViewer', { 
-                pdf: {
-                  ...pdf,
-                  url: null,
-                  demoContent: `This is a demo view of ${pdf.title}.\n\nCategory: ${pdf.category}\nPages: ${pdf.pages}\nSize: ${pdf.size}\n\nIn the full version, you would see the actual PDF content here.`
-                } 
-              });
-            }
-          }
-        ]
-      );
-      return;
-    }
-
-    navigation.navigate('PdfViewer', { pdf });
-  };
 
   const downloadPdf = (pdf) => {
     // TODO: Download PDF for offline reading
@@ -188,40 +141,22 @@ const PdfLibraryScreen = ({ navigation }) => {
   const renderPdfItem = ({ item }) => (
     <View style={styles.pdfCard}>
       <View style={styles.pdfIcon}>
-        <Text style={styles.pdfIconText}>{item.icon}</Text>
+        <Ionicons name="document-text-outline" size={24} color={themeColors.primary} />
       </View>
-      
       <View style={styles.pdfContent}>
         <Text style={styles.pdfTitle}>{item.title}</Text>
-        <Text style={styles.pdfDescription}>{item.description}</Text>
+        <Text style={styles.pdfDescription}>{item.description || ''}</Text>
         <View style={styles.pdfMeta}>
-          <Text style={styles.pdfMetaText}>{item.size}</Text>
-          <Text style={styles.pdfMetaText}>•</Text>
-          <Text style={styles.pdfMetaText}>{item.pages} pages</Text>
+          {item.size && <Text style={styles.pdfMetaText}>{item.size}</Text>}
+          {item.pages && <Text style={styles.pdfMetaText}>• {item.pages} pages</Text>}
         </View>
       </View>
-      
       <View style={styles.pdfActions}>
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => addToFavorites(item)}
-        >
-          <Ionicons name="heart-outline" size={20} color="#3498db" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => downloadPdf(item)}
-        >
-          <Ionicons name="download-outline" size={20} color="#3498db" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.openButton} 
-          onPress={() => openPdf(item)}
-        >
-          <Text style={styles.openButtonText}>Open</Text>
-        </TouchableOpacity>
+        {(item.downloadUrl || item.url) && (
+          <TouchableOpacity style={styles.openButton} onPress={() => Linking.openURL(item.downloadUrl || item.url)}>
+            <Text style={styles.openButtonText}>Open in Website</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -266,13 +201,19 @@ const PdfLibraryScreen = ({ navigation }) => {
       </View>
 
       {/* PDFs List */}
-      <FlatList
-        data={filteredPdfs}
-        renderItem={renderPdfItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.pdfsList}
-        showsVerticalScrollIndicator={false}
-      />
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading sacred texts...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredPdfs}
+          renderItem={renderPdfItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.pdfsList}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -375,9 +316,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
-  pdfIconText: {
-    fontSize: 20,
-  },
   pdfContent: {
     flex: 1,
   },
@@ -401,28 +339,32 @@ const styles = StyleSheet.create({
     color: themeColors.textMuted,
     marginRight: 8,
   },
-  pdfActions: {
-    alignItems: 'center',
-  },
-  actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: themeColors.backgroundLight,
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: themeColors.textSecondary,
+  },
+  pdfActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
   },
   openButton: {
-    backgroundColor: themeColors.accent,
-    borderRadius: 16,
+    backgroundColor: themeColors.primary,
+    borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
+    marginLeft: 8,
   },
   openButtonText: {
-    color: themeColors.textPrimary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
+    color: themeColors.textPrimary,
   },
 });
 

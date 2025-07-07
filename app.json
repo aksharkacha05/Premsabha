@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Premsabha",
-    "slug": "Premsabha",
+    "name": "hariPrem",
+    "slug": "hariPrem",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -30,6 +30,10 @@
       "eas": {
         "projectId": "d8ac1f89-18a7-445d-87bd-530b29a45a5e"
       }
-    }
+    },
+    "plugins": [
+      "expo-audio",
+      "expo-web-browser"
+    ]
   }
 }

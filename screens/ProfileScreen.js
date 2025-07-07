@@ -8,18 +8,19 @@ import {
   ScrollView,
   Alert,
   Switch,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { themeColors, commonStyles } from '../config/theme';
 
-const ProfileScreen = ({ navigation }) => {
+const ProfileScreen = ({ navigation, user }) => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(true);
   const [autoPlayEnabled, setAutoPlayEnabled] = useState(false);
 
   const userProfile = {
-    name: 'Devotee User',
-    email: 'devotee@example.com',
+    name: user?.name || 'Devotee User',
+    email: user?.email || 'devotee@example.com',
     avatar: '🕉️',
     memberSince: '2024',
     totalReadings: 45,
@@ -122,17 +123,17 @@ const ProfileScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={commonStyles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={commonStyles.headingLarge}>Profile</Text>
-          <Text style={styles.headerSubtitle}>Manage your devotional journey</Text>
+        {/* Greeting */}
+        <View style={styles.greetingContainer}>
+          <Image source={require('../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
+          <Text style={styles.greetingText}>Jai Swaminarayan, {userProfile.name || 'Devotee'}!</Text>
         </View>
 
         {/* User Profile Card */}
         <View style={[commonStyles.card, styles.profileCard]}>
           <View style={styles.profileHeader}>
             <View style={styles.avatarContainer}>
-              <Text style={styles.avatar}>{userProfile.avatar}</Text>
+              <Image source={require('../assets/logo.png')} style={styles.avatarImage} resizeMode="contain" />
             </View>
             <View style={styles.profileInfo}>
               <Text style={commonStyles.headingMedium}>{userProfile.name}</Text>
@@ -141,85 +142,15 @@ const ProfileScreen = ({ navigation }) => {
                 Member since {userProfile.memberSince}
               </Text>
             </View>
-            <TouchableOpacity style={styles.editButton}>
-              <Ionicons name="pencil" size={16} color={themeColors.accent} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Stats */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{userProfile.totalReadings}</Text>
-              <Text style={styles.statLabel}>Readings</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{userProfile.totalKirtans}</Text>
-              <Text style={styles.statLabel}>Kirtans</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>12</Text>
-              <Text style={styles.statLabel}>Favorites</Text>
-            </View>
-          </View>
-
-          {/* Favorite Category */}
-          <View style={styles.favoriteCategory}>
-            <Text style={styles.favoriteLabel}>Favorite Category:</Text>
-            <Text style={styles.favoriteValue}>{userProfile.favoriteCategory}</Text>
           </View>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={commonStyles.headingSmall}>Quick Actions</Text>
-          <View style={styles.quickActions}>
-            <TouchableOpacity style={styles.quickActionButton}>
-              <Ionicons name="book-outline" size={24} color={themeColors.accent} />
-              <Text style={styles.quickActionText}>Continue Reading</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionButton}>
-              <Ionicons name="play-outline" size={24} color={themeColors.accent} />
-              <Text style={styles.quickActionText}>Resume Kirtan</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickActionButton}>
-              <Ionicons name="bookmark-outline" size={24} color={themeColors.accent} />
-              <Text style={styles.quickActionText}>Bookmarks</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Settings Menu */}
-        <View style={styles.section}>
-          <Text style={commonStyles.headingSmall}>Settings</Text>
-          <View style={styles.menuContainer}>
-            {menuItems.map(renderMenuItem)}
-          </View>
-        </View>
-
-        {/* Logout Button */}
-        <TouchableOpacity
-          style={[commonStyles.primaryButton, styles.logoutButton]}
-          onPress={() => {
-            Alert.alert(
-              'Logout',
-              'Are you sure you want to logout?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Logout', style: 'destructive', onPress: () => navigation.navigate('Login') }
-              ]
-            );
-          }}
-        >
-          <Ionicons name="log-out-outline" size={20} color={themeColors.textPrimary} />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-
-        {/* App Version */}
-        <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>Sabha App v1.0.0</Text>
-          <Text style={styles.versionSubtext}>Devotional Journey Companion</Text>
+        {/* Log Out Button */}
+        <View style={styles.logoutSection}>
+          <TouchableOpacity style={styles.logoutButton} onPress={() => navigation.replace('Login')}>
+            <Ionicons name="log-out-outline" size={20} color={themeColors.textPrimary} style={{ marginRight: 8 }} />
+            <Text style={styles.logoutButtonText}>Log Out</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -231,14 +162,44 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
   },
-  header: {
+  greetingContainer: {
     alignItems: 'center',
-    paddingVertical: 24,
+    marginTop: 24,
+    marginBottom: 12,
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: themeColors.textSecondary,
-    marginTop: 8,
+  logoImage: {
+    width: 56,
+    height: 56,
+    marginBottom: 8,
+    alignSelf: 'center',
+  },
+  greetingText: {
+    fontSize: 20,
+    color: themeColors.primary,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  logoutSection: {
+    marginTop: 32,
+    alignItems: 'center',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: themeColors.primary,
+    borderRadius: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    shadowColor: themeColors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  logoutButtonText: {
+    color: themeColors.textPrimary,
+    fontSize: 18,
+    fontWeight: '600',
   },
   profileCard: {
     marginBottom: 24,
@@ -257,8 +218,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
-  avatar: {
-    fontSize: 28,
+  avatarImage: {
+    width: 48,
+    height: 48,
   },
   profileInfo: {
     flex: 1,
@@ -272,77 +234,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: themeColors.textMuted,
     marginTop: 2,
-  },
-  editButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: themeColors.backgroundLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: themeColors.backgroundLight,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: themeColors.accent,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: themeColors.textMuted,
-    marginTop: 4,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: themeColors.backgroundLight,
-  },
-  favoriteCategory: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: themeColors.backgroundLight,
-  },
-  favoriteLabel: {
-    fontSize: 14,
-    color: themeColors.textSecondary,
-  },
-  favoriteValue: {
-    fontSize: 14,
-    color: themeColors.accent,
-    fontWeight: '600',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-  },
-  quickActionButton: {
-    flex: 1,
-    backgroundColor: themeColors.backgroundLight,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  quickActionText: {
-    fontSize: 12,
-    color: themeColors.textSecondary,
-    marginTop: 8,
-    textAlign: 'center',
   },
   menuContainer: {
     backgroundColor: themeColors.backgroundCard,
@@ -374,31 +265,6 @@ const styles = StyleSheet.create({
   menuTitle: {
     fontSize: 16,
     color: themeColors.textPrimary,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: themeColors.textPrimary,
-    marginLeft: 8,
-  },
-  versionContainer: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  versionText: {
-    fontSize: 14,
-    color: themeColors.textMuted,
-  },
-  versionSubtext: {
-    fontSize: 12,
-    color: themeColors.textMuted,
-    marginTop: 4,
   },
 });
 

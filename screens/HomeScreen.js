@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,26 +7,57 @@ import {
   ScrollView,
   Dimensions,
   Alert,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { themeColors, commonStyles } from '../config/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { contentApi } from '../config/api';
 
 const { width, height } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
-  const recentReadings = [
-    { id: 1, title: 'Vachanamrut - Gadhada I', progress: 75, lastRead: '2 hours ago' },
-    { id: 2, title: 'Swamini Vato - Chapter 5', progress: 45, lastRead: '1 day ago' },
-    { id: 3, title: 'Shikshapatri - Verses 1-50', progress: 90, lastRead: '3 days ago' },
-  ];
+  const [recentReadings, setRecentReadings] = useState([]);
+  const [recentKirtans, setRecentKirtans] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const recentKirtans = [
-    { id: 1, title: 'Jai Shree Krishna', artist: 'Traditional', duration: '5:32' },
-    { id: 2, title: 'Hare Krishna Hare Ram', artist: 'Traditional', duration: '8:15' },
-    { id: 3, title: 'Govind Bolo Hari Gopal Bolo', artist: 'Traditional', duration: '6:42' },
-  ];
+  // Handler for notifications button
+  const handleNotifications = () => {
+    Alert.alert('Notifications', 'Notifications screen coming soon!');
+  };
 
+  // Handler for settings button
+  const handleSettings = () => {
+    Alert.alert('Settings', 'Settings screen coming soon!');
+  };
+
+  // Handler for favorites quick action
+  const handleFavorites = () => {
+    Alert.alert('Favorites', 'Favorites feature coming soon!');
+  };
+
+  // Handler for search quick action
+  const handleSearch = () => {
+    Alert.alert('Search', 'Search feature coming soon!');
+  };
+
+  // Handler for tapping a reading item (open PDF in browser)
+  const handleReadingPress = (reading) => {
+    const url = reading.downloadUrl || reading.url;
+    if (url) {
+      Linking.openURL(url);
+    } else {
+      Alert.alert('No PDF', 'No PDF URL available for this book.');
+    }
+  };
+
+  // Handler for tapping a kirtan item (navigate to Kirtan Player and play)
+  const handleKirtanPress = (kirtan) => {
+    navigation.navigate('Kirtan Player', { playKirtan: kirtan });
+  };
+
+  // Only include working quick actions
   const quickActions = [
     {
       id: 'continue-reading',
@@ -44,23 +75,45 @@ const HomeScreen = ({ navigation }) => {
       color: themeColors.accent,
       action: () => navigation.navigate('Kirtan Player'),
     },
-    {
-      id: 'favorites',
-      title: 'Favorites',
-      subtitle: 'Your saved content',
-      icon: 'heart-outline',
-      color: themeColors.primaryLighter,
-      action: () => Alert.alert('Favorites', 'Favorites feature coming soon!'),
-    },
-    {
-      id: 'search',
-      title: 'Search',
-      subtitle: 'Find sacred texts & kirtans',
-      icon: 'search-outline',
-      color: themeColors.accentBeige,
-      action: () => Alert.alert('Search', 'Search feature coming soon!'),
-    },
+    // Favorites and Search quick actions are commented out until implemented
+    // {
+    //   id: 'favorites',
+    //   title: 'Favorites',
+    //   subtitle: 'Your saved content',
+    //   icon: 'heart-outline',
+    //   color: themeColors.primaryLighter,
+    //   action: handleFavorites,
+    // },
+    // {
+    //   id: 'search',
+    //   title: 'Search',
+    //   subtitle: 'Find sacred texts & kirtans',
+    //   icon: 'search-outline',
+    //   color: themeColors.accentBeige,
+    //   action: handleSearch,
+    // },
   ];
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await contentApi.getAllContent();
+        if (result.success) {
+          setRecentReadings((result.data.books || []).slice(0, 3));
+          setRecentKirtans((result.data.kirtans || []).slice(0, 3));
+        } else {
+          setError(result.error || 'Failed to load content');
+        }
+      } catch (err) {
+        setError('Failed to load content');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchContent();
+  }, []);
 
   const renderQuickAction = (action) => (
     <TouchableOpacity
@@ -80,29 +133,18 @@ const HomeScreen = ({ navigation }) => {
   );
 
   const renderReadingItem = (reading) => (
-    <TouchableOpacity key={reading.id} style={styles.readingItem}>
+    <TouchableOpacity key={reading.id} style={styles.readingItem} onPress={() => handleReadingPress(reading)}>
       <View style={styles.readingInfo}>
         <Text style={styles.readingTitle} numberOfLines={1}>
           {reading.title}
         </Text>
-        <Text style={styles.readingMeta}>{reading.lastRead}</Text>
-      </View>
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View 
-            style={[
-              styles.progressFill, 
-              { width: `${reading.progress}%` }
-            ]} 
-          />
-        </View>
-        <Text style={styles.progressText}>{reading.progress}%</Text>
+        {/* Optionally show more metadata here */}
       </View>
     </TouchableOpacity>
   );
 
   const renderKirtanItem = (kirtan) => (
-    <TouchableOpacity key={kirtan.id} style={styles.kirtanItem}>
+    <TouchableOpacity key={kirtan.id} style={styles.kirtanItem} onPress={() => handleKirtanPress(kirtan)}>
       <View style={styles.kirtanThumbnail}>
         <Text style={styles.kirtanIcon}>🕉️</Text>
       </View>
@@ -110,9 +152,9 @@ const HomeScreen = ({ navigation }) => {
         <Text style={styles.kirtanTitle} numberOfLines={1}>
           {kirtan.title}
         </Text>
-        <Text style={styles.kirtanArtist}>{kirtan.artist}</Text>
+        <Text style={styles.kirtanArtist}>{kirtan.singer}</Text>
       </View>
-      <Text style={styles.kirtanDuration}>{kirtan.duration}</Text>
+      {/* Optionally show duration or other info */}
     </TouchableOpacity>
   );
 
@@ -128,10 +170,10 @@ const HomeScreen = ({ navigation }) => {
             </Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerButton}>
+            <TouchableOpacity style={styles.headerButton} onPress={handleNotifications}>
               <Ionicons name="notifications-outline" size={24} color={themeColors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton}>
+            <TouchableOpacity style={styles.headerButton} onPress={handleSettings}>
               <Ionicons name="settings-outline" size={24} color={themeColors.textPrimary} />
             </TouchableOpacity>
           </View>
@@ -153,9 +195,15 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.readingsContainer}>
-            {recentReadings.map(renderReadingItem)}
-          </View>
+          {isLoading ? (
+            <Text>Loading...</Text>
+          ) : error ? (
+            <Text style={{ color: 'red' }}>{error}</Text>
+          ) : (
+            <View style={styles.readingsContainer}>
+              {recentReadings.map(renderReadingItem)}
+            </View>
+          )}
         </View>
 
         {/* Recent Kirtans */}
@@ -166,9 +214,15 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.kirtansContainer}>
-            {recentKirtans.map(renderKirtanItem)}
-          </View>
+          {isLoading ? (
+            <Text>Loading...</Text>
+          ) : error ? (
+            <Text style={{ color: 'red' }}>{error}</Text>
+          ) : (
+            <View style={styles.kirtansContainer}>
+              {recentKirtans.map(renderKirtanItem)}
+            </View>
+          )}
         </View>
 
         {/* Daily Quote */}
@@ -287,32 +341,6 @@ const styles = StyleSheet.create({
     color: themeColors.textPrimary,
     flex: 1,
   },
-  readingMeta: {
-    fontSize: 12,
-    color: themeColors.textMuted,
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  progressBar: {
-    flex: 1,
-    height: 4,
-    backgroundColor: themeColors.backgroundLight,
-    borderRadius: 2,
-    marginRight: 12,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: themeColors.accent,
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: 12,
-    color: themeColors.accent,
-    fontWeight: '600',
-    minWidth: 30,
-  },
   kirtansContainer: {
     backgroundColor: themeColors.backgroundCard,
     borderRadius: 16,
@@ -347,10 +375,6 @@ const styles = StyleSheet.create({
   kirtanArtist: {
     fontSize: 12,
     color: themeColors.textSecondary,
-  },
-  kirtanDuration: {
-    fontSize: 12,
-    color: themeColors.textMuted,
   },
   quoteCard: {
     alignItems: 'center',

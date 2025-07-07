@@ -3,10 +3,17 @@
 
 export const API_CONFIG = {
   // 🔥 CHANGE THIS TO YOUR PRODUCTION API BASE URL 🔥
-  BASE_URL: 'https://your-api-domain.com/api', // Replace with your actual API URL
+  BASE_URL: 'https://haripream-backend.onrender.com', // Updated to new API base URL
   
-  // Authentication endpoints - Update these to match your API
+  // Endpoints as per new API
   ENDPOINTS: {
+    CONTENT: '/api/content',      // Fetches all books and kirtans in one JSON
+    KIRTANS: '/api/kirtans',     // Only kirtans
+    BOOKS: '/api/books',         // Only books
+    HEALTH: '/health',           // Health check of server
+    ROOT: '/',                   // Returns API info
+    
+    // Authentication endpoints - Update these to match your API
     LOGIN: '/auth/login',        // Your login endpoint
     SIGNUP: '/auth/signup',      // Your signup endpoint  
     LOGOUT: '/auth/logout',      // Your logout endpoint
@@ -255,5 +262,26 @@ export const kirtanApi = {
   // Get kirtan audio URL
   getKirtanAudioUrl: (id) => {
     return getApiUrl(API_CONFIG.ENDPOINTS.GET_KIRTAN_AUDIO.replace(':id', id));
+  },
+};
+
+// General API Functions for content
+export const contentApi = {
+  // Get all content (books and kirtans)
+  getAllContent: async (token = null) => {
+    try {
+      const response = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.CONTENT), {
+        method: 'GET',
+        headers: getAuthHeaders(token),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error fetching all content:', error);
+      return { success: false, error: error.message };
+    }
   },
 }; 

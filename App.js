@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { themeColors } from './config/theme';
+import * as Notifications from 'expo-notifications';
+// import * as Permissions from 'expo-permissions';
 
 // Import authentication screens
 import LoginAuth from './Auth/LoginAuth';
@@ -17,11 +19,72 @@ import PdfViewerScreen from './screens/PdfViewerScreen';
 const Stack = createStackNavigator();
 
 export default function App() {
+  useEffect(() => {
+    // Request notification permissions on app start
+    const requestPermissions = async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Enable notifications to receive reminders!');
+      }
+    };
+    requestPermissions();
+
+    // Schedule Thursday and Sunday notifications
+    const scheduleSabhaNotifications = async () => {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      // Thursday 9:00 AM
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'પ્રેમસભા યાદી',
+          body: 'જય સ્વામિનારાયણ!\nઆજે સભા છે, કૃપા કરીને અવશ્ય આવજો રાત્રે ૮:૩૦ થી  ૯:૩૦',
+        },
+        trigger: {
+          weekday: 4, // Thursday (1=Sunday, 7=Saturday)
+          hour: 9,
+          minute: 0,
+          repeats: true,
+        },
+      });
+      // Sunday 9:00 AM
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'પ્રેમસભા યાદી',
+          body: 'જય સ્વામિનારાયણ!\nઆજે સભા છે, કૃપા કરીને અવશ્ય આવજો સાંજે ૫ થી ૭',
+        },
+        trigger: {
+          weekday: 1, // Sunday
+          hour: 9,
+          minute: 0,
+          repeats: true,
+        },
+      });
+    };
+    scheduleSabhaNotifications();
+  }, []);
+
+  // Helper to schedule a daily notification at a specific time
+  // Usage: scheduleDailyNotification('08:00', 'Time for your daily kirtan!')
+  const scheduleDailyNotification = async (time, message) => {
+    const [hour, minute] = time.split(':').map(Number);
+    await Notifications.cancelAllScheduledNotificationsAsync(); // Only one for now
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Premsabha Reminder',
+        body: message,
+      },
+      trigger: {
+        hour,
+        minute,
+        repeats: true,
+      },
+    });
+  };
+
   return (
     <NavigationContainer>
       <StatusBar style="light" backgroundColor={themeColors.primary} />
       <Stack.Navigator
-        initialRouteName="MainApp"
+        initialRouteName="Login"
         screenOptions={{
           headerShown: false,
           cardStyle: { backgroundColor: themeColors.backgroundDark },
