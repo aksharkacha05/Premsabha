@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
@@ -16,9 +16,14 @@ import MainTabNavigator from './navigation/MainTabNavigator';
 // Import individual screens for stack navigation
 import PdfViewerScreen from './screens/PdfViewerScreen';
 
+import { getUserSession } from './Auth/session';
+
 const Stack = createStackNavigator();
 
 export default function App() {
+  const [initialRoute, setInitialRoute] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     // Request notification permissions on app start
     const requestPermissions = async () => {
@@ -60,7 +65,19 @@ export default function App() {
       });
     };
     scheduleSabhaNotifications();
+
+    // Check for stored user session
+    const checkSession = async () => {
+      const user = await getUserSession();
+      setInitialRoute(user ? 'MainApp' : 'Login');
+      setLoading(false);
+    };
+    checkSession();
   }, []);
+
+  if (loading) {
+    return null; // Or a splash/loading screen
+  }
 
   // Helper to schedule a daily notification at a specific time
   // Usage: scheduleDailyNotification('08:00', 'Time for your daily kirtan!')
@@ -84,7 +101,7 @@ export default function App() {
     <NavigationContainer>
       <StatusBar style="light" backgroundColor={themeColors.primary} />
       <Stack.Navigator
-        initialRouteName="Login"
+        initialRouteName={initialRoute}
         screenOptions={{
           headerShown: false,
           cardStyle: { backgroundColor: themeColors.backgroundDark },

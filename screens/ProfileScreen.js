@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   Alert,
   Switch,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { themeColors, commonStyles } from '../config/theme';
 

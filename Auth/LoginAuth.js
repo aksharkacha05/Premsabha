@@ -17,6 +17,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { themeColors, commonStyles } from '../config/theme';
 import Snackbar from './Snackbar';
+import { storeUserSession } from './session';
 
 const LoginAuth = ({ navigation }) => {
   const [fullName, setFullName] = useState('');
@@ -25,11 +26,16 @@ const LoginAuth = ({ navigation }) => {
   const [snackbar, setSnackbar] = useState({ visible: false, message: '', type: 'info' });
 
   const handleLogin = async () => {
+    if (password.length < 6) {
+      setSnackbar({ visible: true, message: 'Password must be at least 6 characters.', type: 'error' });
+      return;
+    }
     setIsLoading(true);
     const email = fullName.toLowerCase().replace(/\s+/g, '') + '@premsabha.com';
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       setSnackbar({ visible: true, message: 'Logged in!', type: 'success' });
+      await storeUserSession({ name: fullName, email });
       navigation.replace('MainApp', { user: { name: fullName, email } });
     } catch (error) {
       setSnackbar({ visible: true, message: error.message, type: 'error' });
@@ -57,10 +63,10 @@ const LoginAuth = ({ navigation }) => {
           </View>
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Full Name</Text>
+              <Text style={styles.label}>Username</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your full name"
+                placeholder="Enter your username"
                 value={fullName}
                 onChangeText={setFullName}
                 autoCapitalize="words"

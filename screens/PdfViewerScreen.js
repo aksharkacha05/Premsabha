@@ -4,14 +4,14 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   Alert,
-  Linking,
+  Image,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { themeColors, commonStyles } from '../config/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 // import * as WebBrowser from 'expo-web-browser';
 
 const { width, height } = Dimensions.get('window');

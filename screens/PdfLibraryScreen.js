@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   TextInput,
   Alert,
@@ -15,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { themeColors, commonStyles } from '../config/theme';
 import { contentApi } from '../config/api';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 

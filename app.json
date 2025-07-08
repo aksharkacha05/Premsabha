@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "hariPrem",
-    "slug": "hariPrem",
+    "slug": "haripream",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
@@ -28,7 +28,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "d8ac1f89-18a7-445d-87bd-530b29a45a5e"
+        "projectId": "8c0f4970-fb70-4981-8c76-8d56f1ce2990"
       }
     },
     "plugins": [

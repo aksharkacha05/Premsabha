@@ -17,27 +17,26 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { themeColors, commonStyles } from '../config/theme';
 import Snackbar from './Snackbar';
+import { storeUserSession } from './session';
 
 const SignUp = ({ navigation }) => {
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ visible: false, message: '', type: 'info' });
 
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
   const handleSignUp = async () => {
+    if (password.length < 6) {
+      setSnackbar({ visible: true, message: 'Password must be at least 6 characters.', type: 'error' });
+      return;
+    }
     setIsLoading(true);
     const email = fullName.toLowerCase().replace(/\s+/g, '') + '@premsabha.com';
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: fullName });
       setSnackbar({ visible: true, message: 'Account created!', type: 'success' });
+      await storeUserSession({ name: fullName, email });
       navigation.replace('MainApp', { user: { name: fullName, email } });
     } catch (error) {
       setSnackbar({ visible: true, message: error.message, type: 'error' });
@@ -66,26 +65,13 @@ const SignUp = ({ navigation }) => {
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Full Name</Text>
+              <Text style={styles.label}>Username</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your full name"
+                placeholder="Enter your username"
                 value={fullName}
                 onChangeText={setFullName}
                 autoCapitalize="words"
-                autoCorrect={false}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
                 autoCorrect={false}
               />
             </View>
@@ -97,18 +83,6 @@ const SignUp = ({ navigation }) => {
                 placeholder="Enter your password"
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
                 secureTextEntry
                 autoCapitalize="none"
               />

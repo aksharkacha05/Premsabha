@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   FlatList,
   TextInput,
   Alert,
@@ -14,11 +13,13 @@ import {
   Animated,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { themeColors, commonStyles } from '../config/theme';
 import { contentApi } from '../config/api';
 import Snackbar from '../Auth/Snackbar';
+import Slider from '@react-native-community/slider';
 
 const { width } = Dimensions.get('window');
 
@@ -41,6 +42,19 @@ const KirtanPlayerScreen = ({ navigation }) => {
   const [snackbar, setSnackbar] = useState({ visible: false, message: '', type: 'info' });
   const [isPlayerModalVisible, setPlayerModalVisible] = useState(false);
   const [isTogglingPlayback, setIsTogglingPlayback] = useState(false);
+
+  // Enable background audio playback
+  useEffect(() => {
+    Audio.setAudioModeAsync({
+      staysActiveInBackground: true,
+      playsInSilentModeIOS: true,
+      interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+      shouldDuckAndroid: true,
+      interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+      playThroughEarpieceAndroid: false,
+    });
+    // Note: For lock screen controls, consider migrating to react-native-track-player
+  }, []);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -365,11 +379,28 @@ const KirtanPlayerScreen = ({ navigation }) => {
             <Image source={require('../assets/music-logo.png')} style={styles.musicLogo} resizeMode="contain" />
             <Text style={styles.modalTitle} numberOfLines={2}>{currentKirtan?.title}</Text>
             <Text style={styles.modalArtist}>{currentKirtan?.singer}</Text>
-            {/* Progress Bar */}
+            {/* Progress Bar (replace with Slider) */}
             <View style={styles.progressBarContainer}>
-              <View style={styles.progressBarBg}>
-                <Animated.View style={[styles.progressBarFill, { width: duration ? `${(currentTime/duration)*100}%` : '0%' }]} />
-              </View>
+              <Slider
+                style={{ width: '100%', height: 40 }}
+                minimumValue={0}
+                maximumValue={duration}
+                value={currentTime}
+                minimumTrackTintColor={themeColors.accent}
+                maximumTrackTintColor={themeColors.backgroundCard}
+                thumbTintColor={themeColors.accent}
+                onSlidingComplete={async (value) => {
+                  if (sound && duration) {
+                    try {
+                      await sound.setPositionAsync(value * 1000);
+                      setCurrentTime(value);
+                    } catch (e) {
+                      setSnackbar({ visible: true, message: 'Seek failed', type: 'error' });
+                    }
+                  }
+                }}
+                disabled={!sound || isLoadingAudio}
+              />
               <View style={styles.progressTimeRow}>
                 <Text style={styles.progressTime}>{formatTime(currentTime)}</Text>
                 <Text style={styles.progressTime}>{formatTime(duration)}</Text>
