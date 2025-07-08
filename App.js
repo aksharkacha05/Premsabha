@@ -15,6 +15,7 @@ import MainTabNavigator from './navigation/MainTabNavigator';
 
 // Import individual screens for stack navigation
 import PdfViewerScreen from './screens/PdfViewerScreen';
+import SettingsScreen from './screens/SettingsScreen';
 
 import { getUserSession } from './Auth/session';
 
@@ -143,6 +144,16 @@ export default function App() {
             title: 'PDF Viewer',
             headerShown: false,
             presentation: 'modal',
+          }}
+        />
+
+        {/* Settings Screen (Stack only, not tab) */}
+        <Stack.Screen 
+          name="Settings" 
+          component={SettingsScreen}
+          options={{ 
+            title: 'Settings',
+            headerShown: false,
           }}
         />
       </Stack.Navigator>

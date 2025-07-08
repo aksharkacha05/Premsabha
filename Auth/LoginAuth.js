@@ -71,6 +71,7 @@ const LoginAuth = ({ navigation }) => {
                 onChangeText={setFullName}
                 autoCapitalize="words"
                 autoCorrect={false}
+                placeholderTextColor={themeColors.textMuted}
               />
             </View>
             <View style={styles.inputContainer}>
@@ -82,6 +83,7 @@ const LoginAuth = ({ navigation }) => {
                 onChangeText={setPassword}
                 secureTextEntry
                 autoCapitalize="none"
+                placeholderTextColor={themeColors.textMuted}
               />
             </View>
             <TouchableOpacity

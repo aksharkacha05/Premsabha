@@ -8,6 +8,7 @@ import HomeScreen from '../screens/HomeScreen';
 import PdfLibraryScreen from '../screens/PdfLibraryScreen';
 import KirtanPlayerScreen from '../screens/KirtanPlayerScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -26,6 +27,8 @@ const MainTabNavigator = () => {
             iconName = focused ? 'musical-notes' : 'musical-notes-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
+          } else if (route.name === 'Settings') {
+            iconName = focused ? 'settings' : 'settings-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;

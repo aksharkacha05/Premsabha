@@ -29,7 +29,7 @@ const HomeScreen = ({ navigation }) => {
 
   // Handler for settings button
   const handleSettings = () => {
-    Alert.alert('Settings', 'Settings screen coming soon!');
+    navigation.navigate('Settings');
   };
 
   // Handler for favorites quick action
@@ -181,7 +181,7 @@ const HomeScreen = ({ navigation }) => {
 
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={commonStyles.headingSmall}>Quick Actions</Text>
+          <Text style={[commonStyles.headingSmall, styles.sectionHeading]}>Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
             {quickActions.map(renderQuickAction)}
           </View>
@@ -396,6 +396,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: themeColors.accent,
     fontWeight: '600',
+  },
+  sectionHeading: {
+    marginBottom: 16,
   },
 });
 

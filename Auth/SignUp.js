@@ -73,6 +73,7 @@ const SignUp = ({ navigation }) => {
                 onChangeText={setFullName}
                 autoCapitalize="words"
                 autoCorrect={false}
+                placeholderTextColor={themeColors.textMuted}
               />
             </View>
 
@@ -85,6 +86,7 @@ const SignUp = ({ navigation }) => {
                 onChangeText={setPassword}
                 secureTextEntry
                 autoCapitalize="none"
+                placeholderTextColor={themeColors.textMuted}
               />
             </View>
 
